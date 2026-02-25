@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://unpkg.com/html5-qrcode"></script>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  padding: 20px;
+}
+#scanner {
+  width: 300px;
+  margin: 20px auto;
+}
+button {
+  padding: 10px 20px;
+  margin-top: 10px;
+}
+.card {
+  background: #f4f4f4;
+  padding: 20px;
+  border-radius: 10px;
+  margin-top: 20px;
+}
+</style>
+</head>
+<body>
+
+<h2>Lesson Scanner</h2>
+
+<div id="scanner"></div>
+<div id="result"></div>
+
+<script>
+
+const API_URL = "https://script.google.com/macros/s/AKfycbwBxxa129wz06jrnkdJZZjqs--8jiD6ZA9z0tjcI0nuWMDEvGgBptvaoaRaObBB5QuH/exec";
+
+let html5QrCode = new Html5Qrcode("scanner");
+
+html5QrCode.start(
+  { facingMode: "environment" },
+  { fps: 10, qrbox: 250 },
+  onScanSuccess
+);
+
+function onScanSuccess(decodedText) {
+
+  html5QrCode.stop();
+
+  fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "preview",
+      key: decodedText
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+
+    document.getElementById("result").innerHTML = `
+      <div class="card">
+        <strong>Student:</strong> ${data.studentName}<br>
+        <strong>Ticket:</strong> ${data.ticketId}<br>
+        <strong>Remaining:</strong> ${data.remaining}<br><br>
+        <button onclick="confirmLesson('${decodedText}')">
+          Confirm Lesson
+        </button>
+      </div>
+    `;
+  });
+}
+
+function confirmLesson(key) {
+
+  fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "record",
+      key: key
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+
+    document.getElementById("result").innerHTML = `
+      <div class="card">
+        <strong>Lesson Recorded</strong><br>
+        Remaining: ${data.remaining}
+      </div>
+    `;
+
+    setTimeout(() => {
+      location.reload();
+    }, 2000);
+  });
+}
+
+</script>
+
+</body>
+</html>
