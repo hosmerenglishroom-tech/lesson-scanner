@@ -3,6 +3,7 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://unpkg.com/html5-qrcode"></script>
+
 <style>
 body {
   font-family: Arial, sans-serif;
@@ -25,6 +26,7 @@ button {
 }
 </style>
 </head>
+
 <body>
 
 <h2>Lesson Scanner</h2>
@@ -48,52 +50,62 @@ function onScanSuccess(decodedText) {
 
   html5QrCode.stop();
 
-  fetch(API_URL, {
-    method: "POST",
-    body: JSON.stringify({
-      action: "preview",
-      key: decodedText
-    })
-  })
-  .then(res => res.json())
-  .then(data => {
+  fetch(API_URL + "?action=preview&key=" + encodeURIComponent(decodedText))
+    .then(res => res.json())
+    .then(data => {
 
-    document.getElementById("result").innerHTML = `
-      <div class="card">
-        <strong>Student:</strong> ${data.studentName}<br>
-        <strong>Ticket:</strong> ${data.ticketId}<br>
-        <strong>Remaining:</strong> ${data.remaining}<br><br>
-        <button onclick="confirmLesson('${decodedText}')">
-          Confirm Lesson
-        </button>
-      </div>
-    `;
-  });
+      if (data.error) {
+        document.getElementById("result").innerHTML =
+          "<div class='card'>Error: " + data.error + "</div>";
+        return;
+      }
+
+      document.getElementById("result").innerHTML = `
+        <div class="card">
+          <strong>Student:</strong> ${data.studentName}<br>
+          <strong>Ticket:</strong> ${data.ticketId}<br>
+          <strong>Remaining:</strong> ${data.remaining}<br><br>
+          <button onclick="confirmLesson('${encodeURIComponent(decodedText)}')">
+            Confirm Lesson
+          </button>
+        </div>
+      `;
+    })
+    .catch(err => {
+      document.getElementById("result").innerHTML =
+        "<div class='card'>Fetch Error: " + err + "</div>";
+    });
 }
 
-function confirmLesson(key) {
+function confirmLesson(encodedKey) {
 
-  fetch(API_URL, {
-    method: "POST",
-    body: JSON.stringify({
-      action: "record",
-      key: key
+  const key = decodeURIComponent(encodedKey);
+
+  fetch(API_URL + "?action=record&key=" + encodeURIComponent(key))
+    .then(res => res.json())
+    .then(data => {
+
+      if (data.error) {
+        document.getElementById("result").innerHTML =
+          "<div class='card'>Error: " + data.error + "</div>";
+        return;
+      }
+
+      document.getElementById("result").innerHTML = `
+        <div class="card">
+          <strong>Lesson Recorded</strong><br>
+          Remaining: ${data.remaining}
+        </div>
+      `;
+
+      setTimeout(() => {
+        location.reload();
+      }, 2000);
     })
-  })
-  .then(res => res.json())
-  .then(data => {
-
-    document.getElementById("result").innerHTML = `
-      <div class="card">
-        <strong>Lesson Recorded</strong><br>
-        Remaining: ${data.remaining}
-      </div>
-    `;
-
-    setTimeout(() => {
-      location.reload();
-    }, 2000);
-  });
+    .catch(err => {
+      document.getElementById("result").innerHTML =
+        "<div class='card'>Fetch Error: " + err + "</div>";
+    });
 }
 
 </script>
