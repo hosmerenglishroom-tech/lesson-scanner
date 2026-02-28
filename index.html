@@ -2,27 +2,60 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
 body {
-  font-family: Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   text-align: center;
   padding: 20px;
+  background: #f5f5f7;
 }
+
+h2 {
+  font-weight: 500;
+}
+
 #scanner {
-  width: 300px;
+  width: 320px;
   margin: 20px auto;
 }
-button {
-  padding: 10px 20px;
-  margin-top: 10px;
-}
+
 .card {
-  background: #f4f4f4;
+  background: white;
   padding: 20px;
-  border-radius: 10px;
+  border-radius: 16px;
   margin-top: 20px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+}
+
+button {
+  padding: 12px 20px;
+  margin-top: 15px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.confirm-btn {
+  background: #007aff;
+  color: white;
+}
+
+.confirm-btn:active {
+  opacity: 0.8;
+}
+
+.success {
+  color: #34c759;
+  font-weight: 600;
+}
+
+.error {
+  color: #ff3b30;
+  font-weight: 500;
 }
 </style>
 </head>
@@ -38,7 +71,9 @@ button {
 
 const API_URL = "https://script.google.com/macros/s/AKfycbwBxxa129wz06jrnkdJZZjqs--8jiD6ZA9z0tjcI0nuWMDEvGgBptvaoaRaObBB5QuH/exec";
 
-let html5QrCode = new Html5Qrcode("scanner");
+let currentKey = null;
+
+const html5QrCode = new Html5Qrcode("scanner");
 
 html5QrCode.start(
   { facingMode: "environment" },
@@ -49,14 +84,17 @@ html5QrCode.start(
 function onScanSuccess(decodedText) {
 
   html5QrCode.stop();
+  currentKey = decodedText;
+
+  document.getElementById("result").innerHTML =
+    "<div class='card'>Loading...</div>";
 
   fetch(API_URL + "?action=preview&key=" + encodeURIComponent(decodedText))
     .then(res => res.json())
     .then(data => {
 
       if (data.error) {
-        document.getElementById("result").innerHTML =
-          "<div class='card'>Error: " + data.error + "</div>";
+        showError(data.error);
         return;
       }
 
@@ -64,36 +102,36 @@ function onScanSuccess(decodedText) {
         <div class="card">
           <strong>Student:</strong> ${data.studentName}<br>
           <strong>Ticket:</strong> ${data.ticketId}<br>
-          <strong>Remaining:</strong> ${data.remaining}<br><br>
-          <button onclick="confirmLesson('${encodeURIComponent(decodedText)}')">
+          <strong>Remaining:</strong> ${data.remaining}<br>
+          <strong>Expiry:</strong> ${data.expiry}<br>
+          <button class="confirm-btn" onclick="confirmLesson()">
             Confirm Lesson
           </button>
         </div>
       `;
     })
-    .catch(err => {
-      document.getElementById("result").innerHTML =
-        "<div class='card'>Fetch Error: " + err + "</div>";
-    });
+    .catch(err => showError(err));
 }
 
-function confirmLesson(encodedKey) {
+function confirmLesson() {
 
-  const key = decodeURIComponent(encodedKey);
+  if (!currentKey) return;
 
-  fetch(API_URL + "?action=record&key=" + encodeURIComponent(key))
+  document.getElementById("result").innerHTML =
+    "<div class='card'>Recording lesson...</div>";
+
+  fetch(API_URL + "?action=record&key=" + encodeURIComponent(currentKey))
     .then(res => res.json())
     .then(data => {
 
       if (data.error) {
-        document.getElementById("result").innerHTML =
-          "<div class='card'>Error: " + data.error + "</div>";
+        showError(data.error);
         return;
       }
 
       document.getElementById("result").innerHTML = `
         <div class="card">
-          <strong>Lesson Recorded</strong><br>
+          <div class="success">Lesson Recorded ✓</div>
           Remaining: ${data.remaining}
         </div>
       `;
@@ -102,10 +140,16 @@ function confirmLesson(encodedKey) {
         location.reload();
       }, 2000);
     })
-    .catch(err => {
-      document.getElementById("result").innerHTML =
-        "<div class='card'>Fetch Error: " + err + "</div>";
-    });
+    .catch(err => showError(err));
+}
+
+function showError(message) {
+  document.getElementById("result").innerHTML =
+    "<div class='card error'>Error: " + message + "</div>";
+
+  setTimeout(() => {
+    location.reload();
+  }, 2500);
 }
 
 </script>
